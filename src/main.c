@@ -54,7 +54,7 @@
 #define NUM_MBUFS_DEFAULT 65536
 #define STATS_INTERVAL_DEFAULT 1000
 #define FILENAME_DEFAULT ""
-#define RXQ_PER_CORE_DEFAULT 4
+#define RXQ_PER_CORE_DEFAULT 1
 #define CORES_PER_PORT_DEFAULT 1
 
 const char *argp_program_version = "pktsink 1.0";

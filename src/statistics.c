@@ -75,7 +75,7 @@ static int print_stats(struct stats_config *config, uint16_t port)
 
     printf("\tBuilt-in counters:\n" \
             "\tRX Successful packets: %lu\n" \
-            "\tRX Successful bytes: %s (avg: %lf bytes/pkt)\n" \
+            "\tRX Successful bytes: %s (avg: %.2lf bytes/pkt)\n" \
             "\tRX Unsuccessful packets: %lu\n",
                 port_stats.ipackets,
                 bytes_format(port_stats.ibytes),
