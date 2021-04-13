@@ -38,14 +38,14 @@ char * bytes_format(uint64_t bytes) {
     return result;
 }
 
-char *ps_format(double n, char *output, int len) {
+char *kilo_format(double n, char *output, int len) {
     int i = 0;
     double d = n;
-    for (; i < sizeof(units) && n >= 1024; i++, n /= 1024) {
-        d = n / 1024.0;
+    for (; i < sizeof(units) && n >= 1000; i++, n /= 1000) {
+        d = n / 1000.0;
     }
 
-    snprintf(output, len, "%.2f %s", d, units[i]);
+    snprintf(output, len, "%.3f %s", d, units[i]);
     return output;
 }
 
@@ -71,13 +71,15 @@ static int print_stats(struct stats_config *config, uint16_t port)
     struct rte_eth_stats port_stats;
     rte_eth_stats_get(port, &port_stats);
 
+    double avg_bytes = port_stats.ipackets ? (int)((float)port_stats.ibytes / (float)port_stats.ipackets) : 0;
+
     printf("\tBuilt-in counters:\n" \
             "\tRX Successful packets: %lu\n" \
-            "\tRX Successful bytes: %s (avg: %d bytes/pkt)\n" \
+            "\tRX Successful bytes: %s (avg: %lf bytes/pkt)\n" \
             "\tRX Unsuccessful packets: %lu\n",
                 port_stats.ipackets,
                 bytes_format(port_stats.ibytes),
-                port_stats.ipackets ? (int)((float)port_stats.ibytes / (float)port_stats.ipackets) : 0,
+                avg_bytes,
                 port_stats.ierrors);
 
     struct rx_core_stats rx_stats;
@@ -107,6 +109,10 @@ static int print_stats(struct stats_config *config, uint16_t port)
         fprintf(stderr, "clock_gettime failed on start: %s\n",
                 strerror(errno));
     } else {
+        struct rte_eth_link eth_link;
+        rte_eth_link_get_nowait(port, &eth_link);
+        if (avg_bytes < 64) avg_bytes = 64;
+        double line_rate = eth_link.link_speed * 1000 * 1000.0 / 8 / (avg_bytes + 8 + 12);
         double seconds = timespec_diff_to_double(config->start_, config->end_);
         double pps = (rx_stats.packets - config->last_packets_) / seconds;
         double bps = (rx_stats.bytes - config->last_bytes_) / seconds;
@@ -116,9 +122,11 @@ static int print_stats(struct stats_config *config, uint16_t port)
 #define BUF_LEN 16
         char pps_buf[BUF_LEN];
         char bps_buf[BUF_LEN];
-        printf("\tspeed\t%spps\t%sbps\t\n",
-            ps_format(pps, pps_buf, BUF_LEN),
-            ps_format(bps, bps_buf, BUF_LEN));
+        char line_rate_buf[BUF_LEN];
+        printf("\tspeed\t%spps\t%sbps\tline_rate=%spps\n",
+            kilo_format(pps, pps_buf, BUF_LEN),
+            kilo_format(bps, bps_buf, BUF_LEN),
+            kilo_format(line_rate, line_rate_buf, BUF_LEN));
     }
     return 0;
 }
