@@ -48,6 +48,7 @@ int rx_core(struct rx_core_config *config)
             stats->bytes += rte_pktmbuf_pkt_len(mbuf);
             rte_pktmbuf_free(mbuf);
         }
+        rte_pktmbuf_free_bulk(mbufs, nb_rx);
         stats->packets += nb_rx;
     }
 
