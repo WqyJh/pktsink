@@ -43,13 +43,12 @@ int rx_core(struct rx_core_config *config)
         int nb_rx = rte_eth_rx_burst(config->port, qid, mbufs, config->burst_size);
         if (++qid > qmax) qid = config->queue_min;
 
+        stats->packets += nb_rx;
         for (int j = 0; j < nb_rx; j++) {
             struct rte_mbuf *mbuf = mbufs[j];
             stats->bytes += rte_pktmbuf_pkt_len(mbuf);
-            rte_pktmbuf_free(mbuf);
         }
         rte_pktmbuf_free_bulk(mbufs, nb_rx);
-        stats->packets += nb_rx;
     }
 
     rte_atomic16_dec(config->core_counter);

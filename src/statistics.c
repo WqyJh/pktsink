@@ -127,11 +127,10 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx)
         stats_->start = stats_->end;
     #define BUF_LEN 16
         char pps_buf[BUF_LEN];
-        char bps_buf[BUF_LEN];
         char line_rate_buf[BUF_LEN];
         printf("\tspeed\t%spps\t%sbps\tline_rate=%spps\n",
             kilo_format(pps, pps_buf, BUF_LEN),
-            kilo_format(bps, bps_buf, BUF_LEN),
+            bytes_format(bps),
             kilo_format(line_rate, line_rate_buf, BUF_LEN));
     }
     return 0;
