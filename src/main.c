@@ -448,6 +448,7 @@ int main(int argc, char *argv[]) {
         stats_config.portmask = arguments.portmask;
         stats_config.rxq = nb_rxq;
         stats_config.nb_rx_cores = nb_rx_cores;
+        stats_config.nb_ports = nb_ports;
         stats_config.interval = arguments.statistics;
         stats_config.core_counter = &core_counter;
         start_stats_display(&stats_config);
