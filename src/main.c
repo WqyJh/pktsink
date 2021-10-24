@@ -327,8 +327,6 @@ int main(int argc, char *argv[]) {
     uint16_t nb_rx_cores = 0;
     unsigned int required_cores;
     struct rte_mempool *mbuf_pool;
-    struct rte_mbuf **mbufs;
-    int nb_pkts = 0;
 
     static struct argp argp = {options, parse_opt, args_doc, doc, 0, 0, 0};
     struct arguments arguments;
@@ -385,7 +383,6 @@ int main(int argc, char *argv[]) {
     if (mbuf_pool == NULL)
         rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
     RTE_LOG(INFO, PKTSINK, "Create MBUF_POOL size=%u\n", arguments.num_mbufs);
-    mbufs = rte_malloc(NULL, sizeof(struct rte_mbuf *) * arguments.num_mbufs, 0);
 
     uint16_t nb_rxq = arguments.rxq_per_core * arguments.cores_per_port;
 
@@ -460,9 +457,6 @@ int main(int argc, char *argv[]) {
 
     // Finalize
     rte_free(rx_core_config_list);
-    for (int i = 0; i < nb_pkts; i++) {
-        rte_pktmbuf_free(mbufs[i]);
-    }
     // Free rings
     rte_mempool_free(mbuf_pool);
     rte_eal_cleanup();
