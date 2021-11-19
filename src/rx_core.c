@@ -46,7 +46,18 @@ int rx_core(struct rx_core_config *config)
         stats->packets += nb_rx;
         for (int j = 0; j < nb_rx; j++) {
             struct rte_mbuf *mbuf = mbufs[j];
-            stats->bytes += rte_pktmbuf_pkt_len(mbuf);
+            stats->bytes += rte_pktmbuf_data_len(mbuf);
+            // struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(mbuf, struct rte_ether_hdr *);
+            // if (ntohs(eth_hdr->ether_type) != RTE_ETHER_TYPE_IPV4) {
+            //     fprintf(stderr, "ether_type: 0x%4x ipv6:%d\n", eth_hdr->ether_type,
+            //     ntohs(eth_hdr->ether_type) == RTE_ETHER_TYPE_IPV6
+            //     );
+            //     uint8_t *buf = rte_pktmbuf_mtod(mbuf, uint8_t*);
+            //     for (int i = 0; i < rte_pktmbuf_data_len(mbuf); i++) {
+            //         fprintf(stderr, "%02x ", buf[i]);
+            //     }
+            //     fprintf(stderr, "\n");
+            // }
         }
         rte_pktmbuf_free_bulk(mbufs, nb_rx);
     }
