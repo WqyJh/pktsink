@@ -112,7 +112,7 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx) {
         rte_eth_link_get_nowait(port, &eth_link);
         uint64_t rx_packets = eth_stats.ipackets - stats_->packets;
         uint64_t rx_bytes = eth_stats.ibytes - stats_->bytes;
-        uint64_t drop = eth_stats.imissed + eth_stats.ierrors + stats_->drop;
+        uint64_t drop = eth_stats.imissed + eth_stats.ierrors;
         if (rx_packets > 0) {
             avg_bytes =
                 (double)rx_bytes / rx_packets +

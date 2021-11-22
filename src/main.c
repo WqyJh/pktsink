@@ -333,7 +333,7 @@ int main(int argc, char *argv[]) {
 
     int ret = rte_eal_init(argc, argv);
     if (ret < 0)
-        rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+        rte_exit(EXIT_FAILURE, "Error with EAL initialization: %s\n", rte_strerror(-ret));
     argc -= ret;
     argv += ret;
 
@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
         RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
     if (mbuf_pool == NULL)
         rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
-    RTE_LOG(INFO, PKTSINK, "Create MBUF_POOL size=%u\n", arguments.num_mbufs);
+    RTE_LOG(INFO, PKTSINK, "Create MBUF_POOL size=%u socket=%u\n", arguments.num_mbufs, rte_socket_id());
 
     uint16_t nb_rxq = arguments.rxq_per_core * arguments.cores_per_port;
 
