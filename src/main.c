@@ -45,6 +45,7 @@
 #define ARG_FILENAME 9
 #define ARG_CORES_PER_PORT 10
 #define ARG_RXQ_PER_CORE 11
+#define ARG_SYMHASH 12
 
 #define PORTMASK_DEFAULT 0x0
 #define NB_RX_CORES_DEFAULT 1
@@ -56,6 +57,7 @@
 #define FILENAME_DEFAULT ""
 #define RXQ_PER_CORE_DEFAULT 1
 #define CORES_PER_PORT_DEFAULT 1
+#define SYMHASH_DEFAULT false
 
 const char *argp_program_version = "pktsink 1.0";
 const char *argp_program_bug_address = "781345688@qq.com";
@@ -80,6 +82,8 @@ static struct argp_option options[] = {
      "Repeat times. (default: "_S(NB_RUNS_DEFAULT) "s)", 0},
     {"stats", ARG_STATISTICS, "STATS_INTERVAL", 0,
      "Show statistics interval (ms). (default: "_S(STATS_INTERVAL_DEFAULT) ")", 0},
+    {"symhash", ARG_SYMHASH, NULL, 0,
+     "Enable symhash.", 0},
     {0}};
 
 struct arguments {
@@ -92,6 +96,7 @@ struct arguments {
     uint16_t rxq_per_core;
     uint16_t cores_per_port;
     uint16_t burst_size;
+    bool symhash;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -129,6 +134,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case ARG_STATISTICS:
         arguments->statistics = strtoul(arg, &end, 10);
         break;
+    case ARG_SYMHASH:
+        arguments->symhash = true;
+        break;
     default:
         return ARGP_ERR_UNKNOWN;
     }
@@ -140,6 +148,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 }
 
 // ------------------------- Port Init -------------------------
+
+static uint8_t symmetric_rss_key[40] = {
+    0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+    0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+    0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+    0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+};
+
+static uint8_t *soft_rss_key = NULL;
+static uint8_t soft_rss_key_len;
 
 static int port_init(uint8_t port, uint16_t rx_rings, uint16_t tx_rings,
                      uint16_t num_rxdesc, uint16_t num_txdesc,
@@ -225,6 +243,10 @@ static int port_init(uint8_t port, uint16_t rx_rings, uint16_t tx_rings,
     if (rx_rings > 1) {
         port_conf.rxmode.mq_mode = ETH_MQ_RX_RSS;
         port_conf.rx_adv_conf.rss_conf.rss_key = NULL;
+        if (soft_rss_key) {
+            port_conf.rx_adv_conf.rss_conf.rss_key = soft_rss_key;
+            port_conf.rx_adv_conf.rss_conf.rss_key_len = soft_rss_key_len;
+        }
         port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_PROTO_MASK & dev_info.flow_type_rss_offloads;
         RTE_LOG(INFO, PKTSINK, "Port %u rss_hf requested: %"PRIx64" hardware offload: %"PRIx64"\n", 
         port, port_conf.rx_adv_conf.rss_conf.rss_hf, dev_info.flow_type_rss_offloads);
@@ -347,6 +369,7 @@ int main(int argc, char *argv[]) {
         .ring_size = NB_RING_SIZE_DEFAULT,
         .num_mbufs = NUM_MBUFS_DEFAULT,
         .statistics = STATS_INTERVAL_DEFAULT,
+        .symhash = SYMHASH_DEFAULT,
     };
     // parse arguments
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -394,6 +417,13 @@ int main(int argc, char *argv[]) {
     int core_index = rte_get_next_lcore(-1, true, 0);
     int rx_core_idx = 0;
     RTE_ETH_FOREACH_DEV(port) {
+        if (nb_rxq > 1 && arguments.symhash) {
+            soft_rss_key = symmetric_rss_key;
+            soft_rss_key_len = RTE_DIM(symmetric_rss_key);
+            RTE_LOG(INFO, PKTSINK, "Enable rss hash on port %u\n", port);
+        } else {
+            soft_rss_key = NULL;
+        }
         if (!((1ULL << port) & arguments.portmask)) continue;
         int ret = port_init(port, nb_rxq, 0, arguments.rxd, 0, mbuf_pool);
         if (ret) {
