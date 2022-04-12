@@ -46,6 +46,7 @@
 #define ARG_CORES_PER_PORT 10
 #define ARG_RXQ_PER_CORE 11
 #define ARG_SYMHASH 12
+#define ARG_WATCH 13
 
 #define PORTMASK_DEFAULT 0x0
 #define NB_RX_CORES_DEFAULT 1
@@ -58,6 +59,7 @@
 #define RXQ_PER_CORE_DEFAULT 1
 #define CORES_PER_PORT_DEFAULT 1
 #define SYMHASH_DEFAULT false
+#define WATCH_DEFAULT false
 
 const char *argp_program_version = "pktsink 1.0";
 const char *argp_program_bug_address = "781345688@qq.com";
@@ -84,6 +86,8 @@ static struct argp_option options[] = {
      "Show statistics interval (ms). (default: "_S(STATS_INTERVAL_DEFAULT) ")", 0},
     {"symhash", ARG_SYMHASH, NULL, 0,
      "Enable symhash.", 0},
+    {"watch", ARG_WATCH, NULL, 0,
+     "Watch statictics (refresh terminal).", 0},
     {0}};
 
 struct arguments {
@@ -97,6 +101,7 @@ struct arguments {
     uint16_t cores_per_port;
     uint16_t burst_size;
     bool symhash;
+    bool watch;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -136,6 +141,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         break;
     case ARG_SYMHASH:
         arguments->symhash = true;
+        break;
+    case ARG_WATCH:
+        arguments->watch = true;
         break;
     default:
         return ARGP_ERR_UNKNOWN;
@@ -370,6 +378,7 @@ int main(int argc, char *argv[]) {
         .num_mbufs = NUM_MBUFS_DEFAULT,
         .statistics = STATS_INTERVAL_DEFAULT,
         .symhash = SYMHASH_DEFAULT,
+        .watch = WATCH_DEFAULT,
     };
     // parse arguments
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -478,6 +487,7 @@ int main(int argc, char *argv[]) {
         stats_config.nb_ports = nb_ports;
         stats_config.interval = arguments.statistics;
         stats_config.core_counter = &core_counter;
+        stats_config.watch = arguments.watch;
         start_stats_display(&stats_config);
     }
 

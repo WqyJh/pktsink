@@ -164,7 +164,9 @@ void start_stats_display(struct stats_config *config) {
                      rte_atomic16_read(config->core_counter) == 0)) {
             break;
         }
-        printf("\e[1;1H\e[2J");
+        if (config->watch) {
+            printf("\e[1;1H\e[2J");
+        }
         printf("=== Packet capture statistics %c ===\n",
                ROTATING_CHAR[nb_stat_update++ % 4]);
         uint16_t port;

@@ -23,6 +23,7 @@ struct stats_config {
     uint16_t rxq;
     int nb_rx_cores;
     int nb_ports;
+    bool watch;
     struct port_stats_ *stats_;
 };
 
