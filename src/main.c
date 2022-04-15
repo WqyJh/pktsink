@@ -48,6 +48,8 @@
 #define ARG_RXQ_PER_CORE 11
 #define ARG_SYMHASH 12
 #define ARG_WATCH 13
+#define ARG_PAUSE 14
+#define ARG_SLEEP 15
 
 #define PORTMASK_DEFAULT 0x0
 #define NB_RX_CORES_DEFAULT 1
@@ -61,6 +63,8 @@
 #define CORES_PER_PORT_DEFAULT 1
 #define SYMHASH_DEFAULT false
 #define WATCH_DEFAULT false
+#define PAUSE_DEFAULT 0
+#define SLEEP_DEFAULT 0
 
 const char *argp_program_version = "pktsink 1.0";
 const char *argp_program_bug_address = "781345688@qq.com";
@@ -83,6 +87,10 @@ static struct argp_option options[] = {
      "Ring size. (default: "_S(NB_RING_SIZE_DEFAULT) ")", 0},
     {"num_mbufs", ARG_NUM_MBUFS, "NUM_MBUFS", 0,
      "Repeat times. (default: "_S(NB_RUNS_DEFAULT) "s)", 0},
+    {"pause", ARG_PAUSE, "PAUSE", 0,
+     "Pause in microseconds when rx_burst returns 0. (default: "_S(PAUSE_DEFAULT) ", disabled)", 0},
+    {"sleep", ARG_SLEEP, "SLEEP", 0,
+     "Sleep in microseconds when rx_burst returns 0. (default: "_S(SLEEP_DEFAULT) ", disabled)", 0},
     {"stats", ARG_STATISTICS, "STATS_INTERVAL", 0,
      "Show statistics interval (ms). (default: "_S(STATS_INTERVAL_DEFAULT) ")", 0},
     {"symhash", ARG_SYMHASH, NULL, 0,
@@ -94,6 +102,8 @@ static struct argp_option options[] = {
 struct arguments {
     char *args[2];
     uint64_t portmask;
+    uint64_t pause;
+    uint64_t sleep;
     uint32_t statistics;
     uint32_t ring_size;
     uint32_t num_mbufs;
@@ -139,6 +149,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         break;
     case ARG_STATISTICS:
         arguments->statistics = strtoul(arg, &end, 10);
+        break;
+    case ARG_PAUSE:
+        arguments->pause = strtoul(arg, &end, 10);
+        break;
+    case ARG_SLEEP:
+        arguments->sleep = strtoul(arg, &end, 10);
         break;
     case ARG_SYMHASH:
         arguments->symhash = true;
@@ -378,6 +394,8 @@ int main(int argc, char *argv[]) {
     // set arguments defaults
     arguments = (struct arguments){
         .portmask = PORTMASK_DEFAULT,
+        .pause = PAUSE_DEFAULT,
+        .sleep = SLEEP_DEFAULT,
         .cores_per_port = CORES_PER_PORT_DEFAULT,
         .rxq_per_core = RXQ_PER_CORE_DEFAULT,
         .rxd = NB_RX_DESCS_DEFAULT,
@@ -397,6 +415,10 @@ int main(int argc, char *argv[]) {
     rte_set_log_type(RTE_LOGTYPE_PKTSINK, 1);
     rte_set_log_level(RTE_LOG_DEBUG);
 #endif
+
+    if (arguments.pause && arguments.sleep) {
+        rte_exit(EXIT_FAILURE, "Args conflict of --pause and --sleep, please select one\n");
+    }
 
     uint16_t port;
     RTE_ETH_FOREACH_DEV(port) {
@@ -453,6 +475,8 @@ int main(int argc, char *argv[]) {
             // Config core
             struct rx_core_config *config = &rx_core_config_list[rx_core_idx++];
             config->stop_condition = &should_stop;
+            config->pause = arguments.pause;
+            config->sleep = arguments.sleep;
             config->core_id = core_index;
             config->pool = mbuf_pool;
             config->port = port;

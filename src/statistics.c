@@ -85,10 +85,12 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx) {
         rx_stats.packets += stats.packets;
         rx_stats.bytes += stats.bytes;
         rx_stats.drop += stats.drop;
+        rx_stats.rx_empty += stats.rx_empty;
+
         // Print stats
         printf("Rx core %u port %u\n", rx_config->core_id, rx_config->port);
-        printf("\tpackets=%lu\tbytes=%lu\tdrop=%lu\n", stats.packets,
-               stats.bytes, stats.drop);
+        printf("\tpackets=%lu\tbytes=%lu\tdrop=%lu\tempty=%lu\n", stats.packets,
+               stats.bytes, stats.drop, stats.rx_empty);
         printf("\tQueue %u-%u RX: %lu pkts %lu bytes %lu error pkts\n",
                rx_config->queue_min,
                rx_config->queue_min + rx_config->queue_num - 1,
@@ -96,8 +98,8 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx) {
                eth_stats.q_errors[i]);
     }
     // Print accumulated stats
-    printf("Rx core summary\tpackets=%lu\tbytes=%lu\tdrop=%lu\n",
-           rx_stats.packets, rx_stats.bytes, rx_stats.drop);
+    printf("Rx core summary\tpackets=%lu\tbytes=%lu\tdrop=%lu\tempty=%lu\n",
+           rx_stats.packets, rx_stats.bytes, rx_stats.drop, rx_stats.rx_empty);
 
     struct port_stats_ *stats_ = &config->stats_[idx];
 

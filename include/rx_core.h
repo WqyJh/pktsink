@@ -16,11 +16,14 @@ struct rx_core_stats {
     uint64_t packets;
     uint64_t bytes;
     uint64_t drop;
+    uint64_t rx_empty;
 };
 
 struct rx_core_config {
     bool volatile *stop_condition;
     struct rte_mempool *pool;
+    uint64_t pause;
+    uint64_t sleep;
     rte_atomic16_t *core_counter;
     uint16_t burst_size;
     int core_id;

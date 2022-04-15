@@ -1,13 +1,13 @@
 #include <errno.h>
-#include <generic/rte_atomic.h>
-#include <generic/rte_cycles.h>
-#include <rte_malloc.h>
-#include <rte_mbuf_core.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sched.h>
 
 #include <rte_branch_prediction.h>
+#include <rte_atomic.h>
+#include <rte_malloc.h>
 #include <rte_lcore.h>
 #include <rte_log.h>
 #include <rte_ring.h>
@@ -41,6 +41,14 @@ int rx_core(struct rx_core_config *config)
         }
 
         int nb_rx = rte_eth_rx_burst(config->port, qid, mbufs, config->burst_size);
+        if (unlikely(nb_rx == 0)) {
+            stats->rx_empty++;
+            if (config->sleep) {
+                rte_delay_us_sleep(config->sleep);
+            } else if (config->pause) {
+                rte_delay_us_block(config->pause);
+            }
+        }
         if (++qid > qmax) qid = config->queue_min;
 
         stats->packets += nb_rx;
