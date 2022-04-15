@@ -89,7 +89,7 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx) {
         printf("Rx core %u port %u\n", rx_config->core_id, rx_config->port);
         printf("\tpackets=%lu\tbytes=%lu\tdrop=%lu\n", stats.packets,
                stats.bytes, stats.drop);
-        printf("\tQueue %u-%u RX: %lu pkts %lu bytes %lu missed pkts\n",
+        printf("\tQueue %u-%u RX: %lu pkts %lu bytes %lu error pkts\n",
                rx_config->queue_min,
                rx_config->queue_min + rx_config->queue_num - 1,
                eth_stats.q_ipackets[i], eth_stats.q_ibytes[i],
@@ -142,9 +142,10 @@ static int print_stats(struct stats_config *config, uint16_t port, int idx) {
            "\tRX Successful packets: %lu\n"
            "\tRX Successful bytes: %s (avg: %.2lf bytes/pkt)\n"
            "\tRX Missed packets: %lu\n"
-           "\tRX Unsuccessful packets: %lu\n",
+           "\tRX Unsuccessful packets: %lu\n"
+           "\tRX nombuf: %lu\n",
            eth_stats.ipackets, bytes_format(eth_stats.ibytes), avg_bytes,
-           eth_stats.imissed, eth_stats.ierrors);
+           eth_stats.imissed, eth_stats.ierrors, eth_stats.rx_nombuf);
     return 0;
 }
 

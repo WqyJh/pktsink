@@ -5,6 +5,7 @@
 #include <argp.h>
 #include <linux/limits.h>
 #include <signal.h>
+#include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -193,6 +194,13 @@ static int port_init(uint8_t port, uint16_t rx_rings, uint16_t tx_rings,
         return -EINVAL;
     }
 
+    // if ((ret = rte_eth_dev_reset(port)) != 0) {
+    //     RTE_LOG(ERR, PKTSINK,
+    //             "Port identifier %d reset failed: %s.\n",
+    //             port, rte_strerror(-ret));
+    //     return -EINVAL;
+    // }
+
     rte_eth_dev_info_get(port, &dev_info);
 
     if (tx_rings == 0 || num_txdesc == 0) {
@@ -267,6 +275,9 @@ static int port_init(uint8_t port, uint16_t rx_rings, uint16_t tx_rings,
         return ret;
     }
 
+    // Enable RX in promiscuous mode
+    rte_eth_promiscuous_enable(port);
+
     ret = rte_eth_dev_adjust_nb_rx_tx_desc(port, &num_rxdesc, &num_txdesc);
     if (ret) {
         RTE_LOG(ERR, PKTSINK, "rte_eth_dev_adjust_nb_rx_tx_desc(...): %s\n",
@@ -309,9 +320,6 @@ static int port_init(uint8_t port, uint16_t rx_rings, uint16_t tx_rings,
                 rte_strerror(-ret));
         return ret;
     }
-
-    // Enable RX in promiscuous mode
-    rte_eth_promiscuous_enable(port);
 
     // Display the port MAC address
     struct rte_ether_addr addr;
@@ -494,6 +502,13 @@ int main(int argc, char *argv[]) {
     // Wait for all cores to complete and exit
     RTE_LOG(NOTICE, PKTSINK, "Waiting for all cores to exit\n");
     rte_eal_mp_wait_lcore();
+
+    RTE_ETH_FOREACH_DEV(port) {
+        uint64_t port_bit = 1ULL << port;
+        if (port_bit & arguments.portmask) {
+            rte_eth_dev_stop(port);
+        }
+    }
 
     // Finalize
     rte_free(rx_core_config_list);
