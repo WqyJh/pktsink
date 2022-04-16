@@ -28,6 +28,7 @@
 
 #include <rx_core.h>
 #include <statistics.h>
+#include <common.h>
 
 #define MAX_PKT_BURST 512
 #define MBUF_CACHE_SIZE 256
@@ -43,13 +44,13 @@
 #define ARG_RING_SIZE 6
 #define ARG_NUM_MBUFS 7
 #define ARG_STATISTICS 8
-#define ARG_FILENAME 9
+#define ARG_SCHED 9
 #define ARG_CORES_PER_PORT 10
 #define ARG_RXQ_PER_CORE 11
 #define ARG_SYMHASH 12
 #define ARG_WATCH 13
-#define ARG_PAUSE 14
 #define ARG_SLEEP 15
+#define ARG_SLEEP_FUNC 16
 
 #define PORTMASK_DEFAULT 0x0
 #define NB_RX_CORES_DEFAULT 1
@@ -58,13 +59,17 @@
 #define NB_RING_SIZE_DEFAULT 8192
 #define NUM_MBUFS_DEFAULT 65536
 #define STATS_INTERVAL_DEFAULT 1000
-#define FILENAME_DEFAULT ""
 #define RXQ_PER_CORE_DEFAULT 1
 #define CORES_PER_PORT_DEFAULT 1
 #define SYMHASH_DEFAULT false
 #define WATCH_DEFAULT false
-#define PAUSE_DEFAULT 0
 #define SLEEP_DEFAULT 0
+#define SLEEP_FUNC_DEFAULT "usleep"
+#define SCHED_DEFAULT ""
+
+#define SF_usleep "usleep"
+#define SF_rte_delay_us_sleep "rte_delay_us_sleep"
+#define SF_rte_delay_us_block "rte_delay_us_block"
 
 const char *argp_program_version = "pktsink 1.0";
 const char *argp_program_bug_address = "781345688@qq.com";
@@ -87,26 +92,31 @@ static struct argp_option options[] = {
      "Ring size. (default: "_S(NB_RING_SIZE_DEFAULT) ")", 0},
     {"num_mbufs", ARG_NUM_MBUFS, "NUM_MBUFS", 0,
      "Repeat times. (default: "_S(NB_RUNS_DEFAULT) "s)", 0},
-    {"pause", ARG_PAUSE, "PAUSE", 0,
-     "Pause in microseconds when rx_burst returns 0. (default: "_S(PAUSE_DEFAULT) ", disabled)", 0},
     {"sleep", ARG_SLEEP, "SLEEP", 0,
      "Sleep in microseconds when rx_burst returns 0. (default: "_S(SLEEP_DEFAULT) ", disabled)", 0},
+    {"sleepfunc", ARG_SLEEP_FUNC, "SLEEP_FUNC", 0,
+     "Sleep function when sleep was enabled. (default: "_S(SLEEP_FUNC_DEFAULT) ", available: "_S(SF_usleep) "|"_S(SF_rte_delay_us_sleep) "|"_S(SF_rte_delay_us_block) ")", 0},
     {"stats", ARG_STATISTICS, "STATS_INTERVAL", 0,
      "Show statistics interval (ms). (default: "_S(STATS_INTERVAL_DEFAULT) ")", 0},
     {"symhash", ARG_SYMHASH, NULL, 0,
      "Enable symhash.", 0},
     {"watch", ARG_WATCH, NULL, 0,
      "Watch statictics (refresh terminal).", 0},
+    {"sched", ARG_SCHED, NULL, 0,
+     "Enable deadline scheduler for rx core, like <runtime>:<deadline>:<period> in nano seconds (default: disabled).", 0},
     {0}};
 
 struct arguments {
     char *args[2];
     uint64_t portmask;
-    uint64_t pause;
     uint64_t sleep;
+    uint64_t runtime;
+    uint64_t deadline;
+    uint64_t period;
     uint32_t statistics;
     uint32_t ring_size;
     uint32_t num_mbufs;
+    uint32_t sleepfunc;
     uint16_t rxd;
     uint16_t rxq_per_core;
     uint16_t cores_per_port;
@@ -114,6 +124,52 @@ struct arguments {
     bool symhash;
     bool watch;
 };
+
+int parse_sleepfunc(char *sleepfunc, char **end) {
+    if (sleepfunc == NULL) {
+        errno = -EINVAL;
+        return SF_FLAG_unknown;
+    }
+    if (strcmp(sleepfunc, SF_usleep) == 0) {
+        *end = NULL;
+        return SF_FLAG_usleep;
+    }
+    if (strcmp(sleepfunc, SF_rte_delay_us_sleep) == 0) {
+        *end = NULL;
+        return SF_FLAG_rte_delay_us_sleep;
+    }
+    if (strcmp(sleepfunc, SF_rte_delay_us_block) == 0) {
+        *end = NULL;
+        return SF_FLAG_rte_delay_us_block;
+    }
+    errno = -EINVAL;
+    return SF_FLAG_unknown;
+}
+
+int parse_sched(char *sched, char **end, uint64_t *runtime, uint64_t *deadline, uint64_t *period) {
+    if (sched == NULL) {
+        runtime = 0;
+        deadline = 0;
+        period = 0;
+        return 0;
+    }
+    char *token = strtok_r(sched, ":", end);
+    if (token == NULL) return -1;
+    *runtime = strtoul(token, NULL, 10);
+
+    token = strtok_r(sched, ":", end);
+    if (token == NULL) return -1;
+    *deadline = strtoul(token, NULL, 10);
+
+    token = strtok_r(sched, ":", end);
+    if (token == NULL) return -1;
+    *period = strtoul(token, NULL, 10);
+
+    if (*runtime && *deadline && *period) {
+        return 0;
+    }
+    return -1;
+}
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = state->input;
@@ -150,8 +206,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case ARG_STATISTICS:
         arguments->statistics = strtoul(arg, &end, 10);
         break;
-    case ARG_PAUSE:
-        arguments->pause = strtoul(arg, &end, 10);
+    case ARG_SLEEP_FUNC:
+        arguments->sleepfunc = parse_sleepfunc(arg, &end);
         break;
     case ARG_SLEEP:
         arguments->sleep = strtoul(arg, &end, 10);
@@ -161,6 +217,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         break;
     case ARG_WATCH:
         arguments->watch = true;
+        break;
+    case ARG_SCHED:
+        parse_sched(arg, &end, &arguments->runtime, &arguments->deadline, &arguments->period);
         break;
     default:
         return ARGP_ERR_UNKNOWN;
@@ -394,8 +453,11 @@ int main(int argc, char *argv[]) {
     // set arguments defaults
     arguments = (struct arguments){
         .portmask = PORTMASK_DEFAULT,
-        .pause = PAUSE_DEFAULT,
+        .sleepfunc = SF_FLAG_usleep,
         .sleep = SLEEP_DEFAULT,
+        .runtime = 0,
+        .deadline = 0,
+        .period = 0,
         .cores_per_port = CORES_PER_PORT_DEFAULT,
         .rxq_per_core = RXQ_PER_CORE_DEFAULT,
         .rxd = NB_RX_DESCS_DEFAULT,
@@ -415,10 +477,6 @@ int main(int argc, char *argv[]) {
     rte_set_log_type(RTE_LOGTYPE_PKTSINK, 1);
     rte_set_log_level(RTE_LOG_DEBUG);
 #endif
-
-    if (arguments.pause && arguments.sleep) {
-        rte_exit(EXIT_FAILURE, "Args conflict of --pause and --sleep, please select one\n");
-    }
 
     uint16_t port;
     RTE_ETH_FOREACH_DEV(port) {
@@ -475,8 +533,11 @@ int main(int argc, char *argv[]) {
             // Config core
             struct rx_core_config *config = &rx_core_config_list[rx_core_idx++];
             config->stop_condition = &should_stop;
-            config->pause = arguments.pause;
+            config->sleepfunc = arguments.sleepfunc;
             config->sleep = arguments.sleep;
+            config->runtime = arguments.runtime;
+            config->deadline = arguments.deadline;
+            config->period = arguments.period;
             config->core_id = core_index;
             config->pool = mbuf_pool;
             config->port = port;
@@ -527,12 +588,12 @@ int main(int argc, char *argv[]) {
     RTE_LOG(NOTICE, PKTSINK, "Waiting for all cores to exit\n");
     rte_eal_mp_wait_lcore();
 
-    RTE_ETH_FOREACH_DEV(port) {
-        uint64_t port_bit = 1ULL << port;
-        if (port_bit & arguments.portmask) {
-            rte_eth_dev_stop(port);
-        }
-    }
+    // RTE_ETH_FOREACH_DEV(port) {
+    //     uint64_t port_bit = 1ULL << port;
+    //     if (port_bit & arguments.portmask) {
+    //         rte_eth_dev_stop(port);
+    //     }
+    // }
 
     // Finalize
     rte_free(rx_core_config_list);

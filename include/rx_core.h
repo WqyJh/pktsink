@@ -24,9 +24,13 @@ struct rx_core_config {
     struct rte_mempool *pool;
     uint64_t pause;
     uint64_t sleep;
+    uint64_t runtime;
+    uint64_t deadline;
+    uint64_t period;
     rte_atomic16_t *core_counter;
-    uint16_t burst_size;
+    uint32_t sleepfunc;
     int core_id;
+    uint16_t burst_size;
     uint16_t port;
     uint16_t queue_min;
     uint16_t queue_num;
