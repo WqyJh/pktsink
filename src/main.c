@@ -102,7 +102,7 @@ static struct argp_option options[] = {
      "Enable symhash.", 0},
     {"watch", ARG_WATCH, NULL, 0,
      "Watch statictics (refresh terminal).", 0},
-    {"sched", ARG_SCHED, NULL, 0,
+    {"sched", ARG_SCHED, "SCHED", 0,
      "Enable deadline scheduler for rx core, like <runtime>:<deadline>:<period> in nano seconds (default: disabled).", 0},
     {0}};
 
@@ -157,11 +157,11 @@ int parse_sched(char *sched, char **end, uint64_t *runtime, uint64_t *deadline, 
     if (token == NULL) return -1;
     *runtime = strtoul(token, NULL, 10);
 
-    token = strtok_r(sched, ":", end);
+    token = strtok_r(NULL, ":", end);
     if (token == NULL) return -1;
     *deadline = strtoul(token, NULL, 10);
 
-    token = strtok_r(sched, ":", end);
+    token = strtok_r(NULL, ":", end);
     if (token == NULL) return -1;
     *period = strtoul(token, NULL, 10);
 

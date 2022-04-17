@@ -29,6 +29,7 @@ struct rx_core_config {
     uint64_t period;
     rte_atomic16_t *core_counter;
     uint32_t sleepfunc;
+    bool should_yield_;
     int core_id;
     uint16_t burst_size;
     uint16_t port;

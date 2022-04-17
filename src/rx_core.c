@@ -1,5 +1,6 @@
 #include <errno.h>
 
+#include <sched.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +58,7 @@ int rx_core(struct rx_core_config *config)
         if (ret < 0) {
             goto exit;
         }
+        config->should_yield_ = true;
         RTE_LOG(INFO, RX, "Rx core %u SCHED_DEADLINE runtime:%lu deadline:%lu period:%lu\n",
             rte_lcore_id(), config->runtime, config->deadline, config->period);
     }
@@ -74,7 +76,9 @@ int rx_core(struct rx_core_config *config)
         int nb_rx = rte_eth_rx_burst(config->port, qid, mbufs, config->burst_size);
         if (unlikely(nb_rx == 0)) {
             stats->rx_empty++;
-            if (config->sleep) {
+            if (config->should_yield_) {
+                sched_yield();
+            } else if (config->sleep) {
                 switch (config->sleepfunc) {
                 case SF_FLAG_rte_delay_us_sleep:
                     rte_delay_us_sleep(config->sleep);
