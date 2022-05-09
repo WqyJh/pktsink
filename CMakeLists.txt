@@ -10,9 +10,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_definitions(-march=native)
 
 if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug")
-    message(STATUS "No CMAKE_BUILD_TYPE selected, defaulting to ${CMAKE_BUILD_TYPE}")
+    set(CMAKE_BUILD_TYPE "Release")
 endif()
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 set(CMAKE_C_FLAGS_DEBUG "$ENV{CFLAGS} -O0 -Wall -g -ggdb")
 set(CMAKE_C_FLAGS_RELEASE "$ENV{CFLAGS} -O3 -Wall")
 
@@ -23,8 +23,8 @@ set(ENV{PKG_CONFIG_PATH} "/usr/local/lib/x86_64-linux-gnu/pkgconfig")
 
 find_package(PkgConfig)
 
-message(STATUS "--- PKG_CONFIG_FOUND: ${PKG_CONFIG_FOUND}")
-message(STATUS "--- PKG_CONFIG_VERSION_STRING: ${PKG_CONFIG_VERSION_STRING}")
+message(STATUS "PKG_CONFIG_FOUND: ${PKG_CONFIG_FOUND}")
+message(STATUS "PKG_CONFIG_VERSION_STRING: ${PKG_CONFIG_VERSION_STRING}")
 
 pkg_search_module(DPDK libdpdk)
 

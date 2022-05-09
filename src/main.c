@@ -51,6 +51,7 @@
 #define ARG_WATCH 13
 #define ARG_SLEEP 15
 #define ARG_SLEEP_FUNC 16
+#define ARG_COPY 17
 
 #define PORTMASK_DEFAULT 0x0
 #define NB_RX_CORES_DEFAULT 1
@@ -66,6 +67,7 @@
 #define SLEEP_DEFAULT 0
 #define SLEEP_FUNC_DEFAULT "usleep"
 #define SCHED_DEFAULT ""
+#define COPY_DEFAULT 0
 
 #define SF_usleep "usleep"
 #define SF_rte_delay_us_sleep "rte_delay_us_sleep"
@@ -96,6 +98,8 @@ static struct argp_option options[] = {
      "Sleep in microseconds when rx_burst returns 0. (default: "_S(SLEEP_DEFAULT) ", disabled)", 0},
     {"sleepfunc", ARG_SLEEP_FUNC, "SLEEP_FUNC", 0,
      "Sleep function when sleep was enabled. (default: "_S(SLEEP_FUNC_DEFAULT) ", available: "_S(SF_usleep) "|"_S(SF_rte_delay_us_sleep) "|"_S(SF_rte_delay_us_block) ")", 0},
+    {"copy", ARG_COPY, "COPY", 0,
+     "Copy packet to random buffer for benchmarking, value is number of buffers. (default: "_S(COPY_DEFAULT) ", disabled)", 0},
     {"stats", ARG_STATISTICS, "STATS_INTERVAL", 0,
      "Show statistics interval (ms). (default: "_S(STATS_INTERVAL_DEFAULT) ")", 0},
     {"symhash", ARG_SYMHASH, NULL, 0,
@@ -117,6 +121,7 @@ struct arguments {
     uint32_t ring_size;
     uint32_t num_mbufs;
     uint32_t sleepfunc;
+    int copy;
     uint16_t rxd;
     uint16_t rxq_per_core;
     uint16_t cores_per_port;
@@ -211,6 +216,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         break;
     case ARG_SLEEP:
         arguments->sleep = strtoul(arg, &end, 10);
+        break;
+    case ARG_COPY:
+        arguments->copy = strtoul(arg, &end, 10);
         break;
     case ARG_SYMHASH:
         arguments->symhash = true;
@@ -467,6 +475,7 @@ int main(int argc, char *argv[]) {
         .statistics = STATS_INTERVAL_DEFAULT,
         .symhash = SYMHASH_DEFAULT,
         .watch = WATCH_DEFAULT,
+        .copy = COPY_DEFAULT,
     };
     // parse arguments
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -539,6 +548,7 @@ int main(int argc, char *argv[]) {
             config->deadline = arguments.deadline;
             config->period = arguments.period;
             config->core_id = core_index;
+            config->copy = arguments.copy;
             config->pool = mbuf_pool;
             config->port = port;
             config->queue_min = qid;

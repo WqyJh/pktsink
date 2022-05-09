@@ -47,8 +47,17 @@ int set_scheduler(uint64_t runtime, uint64_t deadline, uint64_t period) {
     return ret;
 }
 
+#define TARGET_LEN 65536
 int rx_core(struct rx_core_config *config)
 {
+    if (config->copy) {
+        config->copy_bufs_ = rte_malloc(NULL, config->copy * sizeof(void *), 0);
+        for (int i = 0; i < TARGET_LEN; i++) {
+            config->copy_bufs_[i] = rte_malloc(NULL, RTE_MBUF_DEFAULT_BUF_SIZE, 0);
+        }
+        config->copy_idx_ = 0;
+    }
+
     struct rx_core_stats *stats = &config->stats;
     int qid = config->queue_min;
     int qmax = config->queue_min + config->queue_num - 1;
@@ -89,6 +98,7 @@ int rx_core(struct rx_core_config *config)
                 case SF_FLAG_usleep:
                 default:
                     usleep(config->sleep);
+                    break;
                 }
             }
         }
@@ -98,6 +108,13 @@ int rx_core(struct rx_core_config *config)
         for (int j = 0; j < nb_rx; j++) {
             struct rte_mbuf *mbuf = mbufs[j];
             stats->bytes += rte_pktmbuf_data_len(mbuf);
+            if (config->copy) {
+                memcpy(config->copy_bufs_[config->copy_idx_++], rte_pktmbuf_mtod(mbuf, void*), rte_pktmbuf_data_len(mbuf));
+                if (config->copy_idx_ == config->copy) {
+                    config->copy_idx_ = 0;
+                }
+            }
+
             // struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(mbuf, struct rte_ether_hdr *);
             // if (ntohs(eth_hdr->ether_type) != RTE_ETHER_TYPE_IPV4) {
             //     fprintf(stderr, "ether_type: 0x%4x ipv6:%d\n", eth_hdr->ether_type,
@@ -114,6 +131,12 @@ int rx_core(struct rx_core_config *config)
     }
 
 exit:
+    for (int i = 0; i < config->copy; i++) {
+        rte_free(config->copy_bufs_[i]);
+    }
+    if (config->copy) {
+        rte_free(config->copy_bufs_);
+    }
     rte_atomic16_dec(config->core_counter);
     RTE_LOG(INFO, RX, "Rx core %u stopped\n", rte_lcore_id());
     return 0;

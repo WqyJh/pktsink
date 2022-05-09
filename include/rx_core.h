@@ -22,6 +22,7 @@ struct rx_core_stats {
 struct rx_core_config {
     bool volatile *stop_condition;
     struct rte_mempool *pool;
+    void** copy_bufs_;
     uint64_t pause;
     uint64_t sleep;
     uint64_t runtime;
@@ -31,6 +32,8 @@ struct rx_core_config {
     uint32_t sleepfunc;
     bool should_yield_;
     int core_id;
+    int copy;
+    int copy_idx_;
     uint16_t burst_size;
     uint16_t port;
     uint16_t queue_min;
